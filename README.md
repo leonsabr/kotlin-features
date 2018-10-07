@@ -1,5 +1,3 @@
-//TODO 5, 9, 10, 14, 15 (=5)
-
 1. Создание и заполнение коллекций (list и map).
   **Профит:** лаконичность кода.
     ```
@@ -63,7 +61,25 @@
     data class User(val login: String, val username: String, val password: String, val email: String)
     ```
     **Про "apply { } и also { } как замена билдерам" нужно еще подумать**
-5. Более простые лямбда-функции. Профит: лаконичность кода, можно писать DSL.
+5. Более простые лямбда-функции.
+  **Профит:** лаконичность кода, можно писать DSL.
+    ```
+    portMapping.map { PortBinding(bindPortSpec(it.key), tcp(Integer.parseInt(it.value))) }
+    ```
+    ```
+    @Step("{0}")
+    fun <T> step(title: String, body: () -> T) = body()
+
+    step("Update user group") {
+        api.userGroupDAO.update(groupId, UserGroupJSON().apply { name = newName })
+    }
+    ```
+    ```
+    api.userDAO.create(user("User_$runID") {
+        groups = listOf(...)
+        projectRoles = listOf(...)
+    })
+    ```
 6. Нет checked exceptions.
   **Профит:** очевиден.
     ```
@@ -96,8 +112,35 @@
 
     createBackupButton.waitForIt(isEnabled = true)
     ```
-9. Null safety. Профит: компилятор заставляет добавить обработку потенциального NPE еще при компиляции.
+9. Null safety.
+    **Профит:** компилятор заставляет добавить обработку потенциального NPE еще при компиляции.
+    ```
+    data class User (
+            val username: String,
+            val email: String?
+    )
+
+    data class Issue(
+            val id: String,
+            val project: Project,
+            val summary: String,
+            val description: String,
+            val assignee: User?
+    )
+
+    val issue = // parse json string with Gson or another lib
+
+    // тут компилятор скажет, что assignee - это nullable type
+    issue.assignee.username
+    ```
+
 10. Операторы `?.` и `?:`
+    ```
+    usersTable.rows.firstOrNull { it.userNameLink.text == userName }
+        ?.selectUserCheckbox
+        ?.click()
+        ?: fail("Can't find [$userName] user!")
+    ```
 11. `try/catch`, `if` и `when` являются выражениями (expression), то есть возвращают значения.
     ```
     fun <T : HtmlElement> T.staleSafeExists() = try {
@@ -146,7 +189,31 @@
     }
     ```
 14. Геттер в ленивой инициализацией `by lazy { }`
+    ```
+    val api by lazy { RemoteAPI.create(accountsClient) }
+    ```
+    ```
+    val browser by lazy { Browser(...) }
+    ```
 15. reified type parameters могут сделать более читаемым парсинг json
+    ```
+    // reified type parameter
+    interface JSONConvertable {
+        fun toJSON(): String = Gson().toJson(this)
+    }
+
+    inline fun <reified T: JSONConvertable> String.toObject(): T = Gson().fromJson(this, T::class.java)
+
+    // data class
+    data class User(
+        val id: String,
+        val login: String,
+        val username: String) : JSONConvertable
+
+    // usage
+    val user = "{ ... }".toObject<User>()
+    val json = user.toJSON()
+    ```
 16. передача функции в функцию через `::funcName`
     ```
     private fun generateOneTimePassword(secretKey: String) = TOTPProviders.googleAuthenticator()
